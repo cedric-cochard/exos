@@ -2,5 +2,8 @@
   "name": "monop",
   "version": "1.0.0",
   "main": "index.js",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "mongoose": "^8.2.1"
+  }
 }
