@@ -1,3 +1,4 @@
 require("dotenv").config();
 require("./models/connection");
-require("./script");
+// require("./script");
+require("./streamFile");
