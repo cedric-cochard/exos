@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const excelDataSschema = new mongoose.Schema({
   codeOsp: { type: String, required: true },
-  irefc: { type: Number, required: true },
+  irefc: { type: String, required: true },
   date: { type: String, required: true },
 });
 
