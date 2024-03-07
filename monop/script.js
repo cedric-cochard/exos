@@ -1,11 +1,8 @@
-require("dotenv").config();
-require("./models/connection");
-
 const DataExcel = require("./models/dataExcel");
 
 const updateData = () => {
   const newDataExcel = new DataExcel({
-    codeOsp: "coucou2",
+    codeOsp: "coucou3",
     irefc: 122345,
     date: "06/03/2024",
   });
