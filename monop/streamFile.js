@@ -91,6 +91,8 @@ async function streamFilePipeline() {
   // Mais après, il faut qu'il donne 500 élements par 500 à la suite de la pipeline
   const limit = 500;
   let bufferElements = [];
+  // Buffer Nodejs -> Buffer<12 5a 23 52 ....> -> Array de valeurs hexédécimales
+  // Buffer = variable temporaire pour stocker informations
   const nByNTransform = new Transform({
     objectMode: true,
     transform(chunk, _enc, callback) {
@@ -123,10 +125,16 @@ async function streamFilePipeline() {
           irefc: element.irefc,
           date: element.date,
         });
+        // .save() n'en sauvegarde que un !
         await valuesObject.save();
       }
 
-      bufferElements = [];
+      // Si tu veux l'incrémentation en base
+      // 1 - Avoir la bonne méthode pour ranger par lot 
+      // 2 - Un wait/sleep de 3 secondes avant de ranger le lot suivant
+      // -> Tu auras 3 secondes pour voir en base de données le lot se remplir
+
+    //   bufferElements = [];
       callback(null);
     },
   });
