@@ -60,63 +60,84 @@ async function streamFilePipeline() {
   let countLines = 0;
 
   // Dans un prmier temps de passer les éléments 1 par 1 pour ranger en base 1 par 1
-  const oneByOneTransform = new Transform({
+  // const oneByOneTransform = new Transform({
+  //   objectMode: true,
+  //   transform(chunk, _enc, callback) {
+  //     countLines = countLines + 1;
+  //     // { CODE_OSP: 'MPX_6602680', IREFC: '6602680', DATE_FIN: '9999-12-31' }
+  //     console.log("Chunk : ", chunk);
+
+  //     callback(null, chunk);
+  //   },
+  // });
+
+  /** 1 par 1 */
+  // const insertTransform = new Transform({
+  //   objectMode: true,
+  //   async transform(chunk, _enc, callback) {
+  //     // ...InsertIn DB one by one like before
+  //     console.log("enc:", _enc);
+  //     const valuesObject = new DataExcel({
+  //       codeOsp: chunk.CODE_OSP,
+  //       irefc: chunk.IREFC,
+  //       date: chunk.DATE_FIN,
+  //     });
+  //     await valuesObject.save();
+  //     console.log("Saved:", chunk);
+  //     callback(null);
+  //   },
+  // });
+
+  // Mais après, il faut qu'il donne 500 élements par 500 à la suite de la pipeline
+  const limit = 500;
+  let bufferElements = [];
+  const nByNTransform = new Transform({
     objectMode: true,
     transform(chunk, _enc, callback) {
       countLines = countLines + 1;
       // { CODE_OSP: 'MPX_6602680', IREFC: '6602680', DATE_FIN: '9999-12-31' }
-      console.log("Chunk : ", chunk);
-
-      callback(null, chunk);
+      let batch = null;
+      bufferElements.push(chunk);
+      while (bufferElements.length >= limit) {
+        batch = bufferElements.splice(0, limit);
+        console.log("batchL:", batch.length);
+        this.push(batch);
+      }
+      // if (bufferElements.length < limit) {
+      //   this.push(batch);
+      // }
+      callback(null, batch);
     },
   });
 
-  /** 1 par 1 */
-  const insertTransform = new Transform({
+  /** 500 par 500 */
+  const insertBulkTransform = new Transform({
     objectMode: true,
-    async transform(chunk, _enc, callback) {
-      // ...InsertIn DB one by one like before
-      console.log("enc:", _enc);
-      const valuesObject = new DataExcel({
-        codeOsp: chunk.CODE_OSP,
-        irefc: chunk.IREFC,
-        date: chunk.DATE_FIN,
-      });
-      await valuesObject.save();
-      console.log("Saved:", chunk);
+    async transform(batch, _enc, callback) {
+      // chunk.length === 500
+      // ...InsertIn DB of 500 elements
+
+      for (const element of batch) {
+        const valuesObject = new DataExcel({
+          codeOsp: element.codeOsp,
+          irefc: element.irefc,
+          date: element.date,
+        });
+        await valuesObject.save();
+      }
+
+      bufferElements = [];
       callback(null);
     },
   });
-
-  // Mais après, il faut qu'il donne 500 élements par 500 à la suite de la pipeline
-  //  const nByNTransform = new Transform({
-  //     objectMode: true,
-  //     transform(chunk, _enc, callback) {
-  //         countLines = countLines + 1;
-  //         // { CODE_OSP: 'MPX_6602680', IREFC: '6602680', DATE_FIN: '9999-12-31' }
-  //         console.log('Chunk : ', chunk);
-
-  //         callback(null, chunk);
-  //     },
-  // });
-
-  /** 500 par 500 */
-  // const insertBulkTransform = new Transform({
-  //     objectMode: true,
-  //     transform(chunk, _enc, callback) {
-  //         // chunk.length === 500
-  //         // ...InsertIn DB of 500 elements
-  //         callback(null);
-  //     },
-  // });
 
   const asyncPipeline = promisify(pipeline);
 
   await asyncPipeline(
     stream,
-    csv({ headers: ["CODE_OSP", "IREFC", "DATE_FIN"], separator: ";" }),
-    oneByOneTransform,
-    insertTransform
+    csv({ headers: ["codeOsp", "irefc", "date"], separator: ";" }),
+    nByNTransform,
+    insertBulkTransform
   );
 
   console.info("Number of lines in file, including headers : ", countLines);
