@@ -89,26 +89,29 @@ async function streamFilePipeline() {
   // });
 
   // Mais après, il faut qu'il donne 500 élements par 500 à la suite de la pipeline
-  const limit = 500;
-  let bufferElements = [];
+
   // Buffer Nodejs -> Buffer<12 5a 23 52 ....> -> Array de valeurs hexédécimales
   // Buffer = variable temporaire pour stocker informations
   const nByNTransform = new Transform({
     objectMode: true,
     transform(chunk, _enc, callback) {
+      const limit = 500;
+      let bufferElements = [];
       countLines = countLines + 1;
       // { CODE_OSP: 'MPX_6602680', IREFC: '6602680', DATE_FIN: '9999-12-31' }
-      let batch = null;
+
       bufferElements.push(chunk);
-      while (bufferElements.length >= limit) {
-        batch = bufferElements.splice(0, limit);
-        console.log("batchL:", batch.length);
-        this.push(batch);
+      if (bufferElements.length === limit) {
+        console.log(countLines);
+
+        console.log("length:", bufferElements.length);
+        this.push(bufferElements);
+        bufferElements = [];
       }
+      callback(null, bufferElements);
       // if (bufferElements.length < limit) {
       //   this.push(batch);
       // }
-      callback(null, batch);
     },
   });
 
@@ -119,24 +122,29 @@ async function streamFilePipeline() {
       // chunk.length === 500
       // ...InsertIn DB of 500 elements
 
-      for (const element of batch) {
-        const valuesObject = new DataExcel({
-          codeOsp: element.codeOsp,
-          irefc: element.irefc,
-          date: element.date,
-        });
-        // .save() n'en sauvegarde que un !
-        await valuesObject.save();
-      }
+      const elements = batch.map((element) => ({
+        codeOsp: element.codeOsp,
+        irefc: element.irefc,
+        date: element.date,
+      }));
 
-      // Si tu veux l'incrémentation en base
-      // 1 - Avoir la bonne méthode pour ranger par lot 
-      // 2 - Un wait/sleep de 3 secondes avant de ranger le lot suivant
-      // -> Tu auras 3 secondes pour voir en base de données le lot se remplir
-
-    //   bufferElements = [];
+      // for (const element of batch) {
+      //   const valuesObject = new DataExcel({
+      //     codeOsp: element.codeOsp,
+      //     irefc: element.irefc,
+      //     date: element.date,
+      //   });
+      // .save() n'en sauvegarde que un !
+      await DataExcel.insertMany(elements);
       callback(null);
     },
+
+    // Si tu veux l'incrémentation en base
+    // 1 - Avoir la bonne méthode pour ranger par lot
+    // 2 - Un wait/sleep de 3 secondes avant de ranger le lot suivant
+    // -> Tu auras 3 secondes pour voir en base de données le lot se remplir
+
+    //   bufferElements = [];
   });
 
   const asyncPipeline = promisify(pipeline);
