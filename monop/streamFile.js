@@ -135,7 +135,10 @@ async function streamFilePipeline() {
       //     date: element.date,
       //   });
       // .save() n'en sauvegarde que un !
-      await DataExcel.insertMany(elements);
+
+      //! @Cedric regarde ce log, ça retourne "Inserting 1 elements into the database !" -> ça voudrait dire que ta variable batch = 1 seul élément
+      console.log(`Inserting ${elements.length} elements into the database !`)
+      await DataExcel.insertMany(elements); // Yes bonne méthode !
       callback(null);
     },
 
